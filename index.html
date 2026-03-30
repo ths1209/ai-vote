@@ -157,14 +157,6 @@
     font-size: 0.82rem;
     color: #6ee7f7;
   }
-  .vote-score-badge {
-    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
-    border-radius: 20px;
-    padding: 2px 10px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #a78bfa;
-  }
 
   /* 投票按钮 */
   .vote-btn {
@@ -347,6 +339,44 @@
     margin-bottom: 16px;
   }
 
+  /* ── 卡片统计行 ── */
+  .card-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    color: #666688;
+  }
+  .vote-score-badge {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #a78bfa;
+  }
+  .vote-count-badge {
+    background: #2a1a4a;
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #c084fc;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 14px;
+    background: #2a2a4a;
+  }
+
   /* ── 卡片内分值选择器 ── */
   .card-scores {
     display: flex;
@@ -410,6 +440,7 @@ const API_BASE       = 'https://yach-teable.zhiyinlou.com/api';
 const TABLE_ID       = 'tblxBl7kORJNUmGF2T3';
 const TOKEN          = 'teable_accHbUeB52g6mBazSV1_sgc4V24Eq1XNWUTSKiZfxaU42yGtWXO8GfuiWGhd9xY=';
 const FIELD_SCORE_ID = 'fldWxwzqlR1byQiMCy0';
+const FIELD_COUNT_ID = 'fldriEnbKIH8fphLQwy'; // 投票人数字段 ID
 const SCORES         = [100, 80, 50, 30, 10];
 const VOTED_KEY      = 'ai_vote_map_v2'; // { recordId: score, ... }
 
@@ -448,11 +479,11 @@ async function loadRecords() {
   return data.records;
 }
 
-async function updateScore(recordId, newScore) {
+async function updateScore(recordId, newScore, newCount) {
   await apiFetch(`/table/${TABLE_ID}/record/${recordId}`, {
     method: 'PATCH',
     body: JSON.stringify({
-      record: { fields: { [FIELD_SCORE_ID]: newScore } },
+      record: { fields: { [FIELD_SCORE_ID]: newScore, [FIELD_COUNT_ID]: newCount } },
       fieldKeyType: 'id',
     }),
   });
@@ -493,23 +524,22 @@ function renderCards() {
 }
 
 function renderCard(r, i, voteMap) {
-  const name      = r.fields['作品名称'] || '—';
-  const curScore  = r.fields['票数'] || 0;
-  const myVote    = voteMap[r.id];          // 已投分值（或 undefined）
-  const pending   = pendingMap[r.id] || null; // 本卡片待选分值
+  const name       = r.fields['作品名称'] || '—';
+  const curScore   = r.fields['票数'] || 0;
+  const curCount   = r.fields['投票人数'] || 0;
+  const myVote     = voteMap[r.id];
+  const pending    = pendingMap[r.id] || null;
 
   let bottomHtml;
   if (myVote) {
-    // 已投：展示徽标
     bottomHtml = `<button class="vote-btn voted-btn" disabled>✓ 已投 ${myVote} 分</button>`;
   } else {
-    // 未投：显示分值按钮 + 确认按钮
     const scoreBtns = SCORES.map(s => `
       <button class="card-score-btn ${pending === s ? 'selected' : ''}"
               onclick="selectCardScore('${r.id}', ${s})">${s}</button>
     `).join('');
     const confirmBtn = `
-      <button class="vote-btn ${pending ? '' : ''}"
+      <button class="vote-btn"
               onclick="doVote('${r.id}', '${name.replace(/'/g, "\\'")}')"
               ${pending ? '' : 'disabled'}>
         ${pending ? `投 ${pending} 分` : '选分值'}
@@ -525,11 +555,23 @@ function renderCard(r, i, voteMap) {
     <div class="card ${myVote ? 'voted' : ''}">
       <div class="card-num">NO.${String(i+1).padStart(2,'0')}</div>
       <div class="card-name">${name}</div>
-      <div class="vote-count" style="margin-top:4px">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7f7" stroke-width="2">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-        <span class="vote-score-badge">${curScore}</span>
+      <div class="card-stats">
+        <div class="stat-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7f7" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span class="vote-score-badge">${curScore}</span>
+          <span class="stat-label">总分</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span class="vote-count-badge">${curCount}</span>
+          <span class="stat-label">人已投</span>
+        </div>
       </div>
       <div class="card-footer" style="flex-wrap:wrap;gap:8px">
         ${bottomHtml}
@@ -600,19 +642,22 @@ async function doVote(recordId, name) {
 
   const rec = records.find(r => r.id === recordId);
   const oldScore = rec.fields['票数'] || 0;
+  const oldCount = rec.fields['投票人数'] || 0;
 
   // 乐观更新
   rec.fields['票数'] = oldScore + score;
+  rec.fields['投票人数'] = oldCount + 1;
   saveVote(recordId, score);
   delete pendingMap[recordId];
   render();
   showToast(`✅ 已为「${name}」投 ${score} 分！`);
 
   try {
-    await updateScore(recordId, oldScore + score);
+    await updateScore(recordId, oldScore + score, oldCount + 1);
   } catch (e) {
     // 回滚
     rec.fields['票数'] = oldScore;
+    rec.fields['投票人数'] = oldCount;
     removeVote(recordId);
     pendingMap[recordId] = score;
     render();
@@ -660,11 +705,12 @@ async function clearAllData() {
       await apiFetch(`/table/${TABLE_ID}/record/${rec.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          record: { fields: { [FIELD_SCORE_ID]: null } },
+          record: { fields: { [FIELD_SCORE_ID]: null, [FIELD_COUNT_ID]: null } },
           fieldKeyType: 'id',
         }),
       });
       rec.fields['票数'] = 0;
+      rec.fields['投票人数'] = 0;
     } catch (e) {
       failures.push(rec.fields['作品名称'] || rec.id);
     }
