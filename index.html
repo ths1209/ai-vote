@@ -474,8 +474,16 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
+const FIELD_NAME_ID  = 'fldcwGKQX0hJnUBWgwU'; // 作品名称字段 ID
+
 async function loadRecords() {
-  const data = await apiFetch(`/table/${TABLE_ID}/record?fieldKeyType=name&pageSize=100`);
+  const data = await apiFetch(`/table/${TABLE_ID}/record?fieldKeyType=id&pageSize=100`);
+  // 统一把字段 ID 映射成中文 key，方便后续代码使用
+  data.records.forEach(r => {
+    r.fields['作品名称'] = r.fields[FIELD_NAME_ID]  || '—';
+    r.fields['票数']     = r.fields[FIELD_SCORE_ID]  || 0;
+    r.fields['投票人数'] = r.fields[FIELD_COUNT_ID]  || 0;
+  });
   return data.records;
 }
 
@@ -671,7 +679,10 @@ async function refreshScores() {
     const fresh = await loadRecords();
     fresh.forEach(fr => {
       const local = records.find(r => r.id === fr.id);
-      if (local) local.fields['票数'] = fr.fields['票数'] || 0;
+      if (local) {
+        local.fields['票数']     = fr.fields['票数']     || 0;
+        local.fields['投票人数'] = fr.fields['投票人数'] || 0;
+      }
     });
     renderRank();
     // 同步卡片票数显示
