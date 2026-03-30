@@ -440,7 +440,7 @@ const API_BASE       = 'https://yach-teable.zhiyinlou.com/api';
 const TABLE_ID       = 'tblxBl7kORJNUmGF2T3';
 const TOKEN          = 'teable_accHbUeB52g6mBazSV1_sgc4V24Eq1XNWUTSKiZfxaU42yGtWXO8GfuiWGhd9xY=';
 const FIELD_SCORE_ID = 'fldWxwzqlR1byQiMCy0';
-const FIELD_COUNT_ID = 'fldriEnbKIH8fphLQwy'; // 投票人数字段 ID
+const FIELD_COUNT_ID = 'fldriEnbKIH8fphLQwy'; // 已投票人数字段 ID
 const SCORES         = [100, 80, 50, 30, 10];
 const VOTED_KEY      = 'ai_vote_map_v2'; // { recordId: score, ... }
 
@@ -482,7 +482,7 @@ async function loadRecords() {
   data.records.forEach(r => {
     r.fields['作品名称'] = r.fields[FIELD_NAME_ID]  || '—';
     r.fields['票数']     = r.fields[FIELD_SCORE_ID]  || 0;
-    r.fields['投票人数'] = r.fields[FIELD_COUNT_ID]  || 0;
+    r.fields['已投票人数'] = r.fields[FIELD_COUNT_ID]  || 0;
   });
   return data.records;
 }
@@ -534,7 +534,7 @@ function renderCards() {
 function renderCard(r, i, voteMap) {
   const name       = r.fields['作品名称'] || '—';
   const curScore   = r.fields['票数'] || 0;
-  const curCount   = r.fields['投票人数'] || 0;
+  const curCount   = r.fields['已投票人数'] || 0;
   const myVote     = voteMap[r.id];
   const pending    = pendingMap[r.id] || null;
 
@@ -650,11 +650,11 @@ async function doVote(recordId, name) {
 
   const rec = records.find(r => r.id === recordId);
   const oldScore = rec.fields['票数'] || 0;
-  const oldCount = rec.fields['投票人数'] || 0;
+  const oldCount = rec.fields['已投票人数'] || 0;
 
   // 乐观更新
   rec.fields['票数'] = oldScore + score;
-  rec.fields['投票人数'] = oldCount + 1;
+  rec.fields['已投票人数'] = oldCount + 1;
   saveVote(recordId, score);
   delete pendingMap[recordId];
   render();
@@ -665,7 +665,7 @@ async function doVote(recordId, name) {
   } catch (e) {
     // 回滚
     rec.fields['票数'] = oldScore;
-    rec.fields['投票人数'] = oldCount;
+    rec.fields['已投票人数'] = oldCount;
     removeVote(recordId);
     pendingMap[recordId] = score;
     render();
@@ -681,7 +681,7 @@ async function refreshScores() {
       const local = records.find(r => r.id === fr.id);
       if (local) {
         local.fields['票数']     = fr.fields['票数']     || 0;
-        local.fields['投票人数'] = fr.fields['投票人数'] || 0;
+        local.fields['已投票人数'] = fr.fields['已投票人数'] || 0;
       }
     });
     renderRank();
@@ -721,7 +721,7 @@ async function clearAllData() {
         }),
       });
       rec.fields['票数'] = 0;
-      rec.fields['投票人数'] = 0;
+      rec.fields['已投票人数'] = 0;
     } catch (e) {
       failures.push(rec.fields['作品名称'] || rec.id);
     }
