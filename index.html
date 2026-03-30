@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 作品评选投票</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0f0f1a;
+    color: #e0e0f0;
+    min-height: 100vh;
+  }
+
+  /* ── 顶部 Banner ── */
+  .banner {
+    background: linear-gradient(135deg, #1a1a3e 0%, #0d2060 50%, #1a1a3e 100%);
+    border-bottom: 1px solid #2a2a5a;
+    padding: 28px 20px 20px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  .banner h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #6ee7f7, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  .banner p {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #8888aa;
+  }
+
+  /* ── 状态提示 ── */
+  #status-bar {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.82rem;
+    color: #6ee7f7;
+    min-height: 32px;
+  }
+
+  /* ── 主体布局 ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 12px 16px 40px;
+  }
+
+  /* ── 分值选择器 ── */
+  .score-picker {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #16162a;
+    border-radius: 14px;
+    border: 1px solid #2a2a4a;
+  }
+  .score-picker label {
+    font-size: 0.8rem;
+    color: #8888aa;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .score-btn {
+    padding: 8px 20px;
+    border-radius: 20px;
+    border: 2px solid #3a3a6a;
+    background: #1e1e3a;
+    color: #c0c0e0;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .score-btn:hover { border-color: #6ee7f7; color: #6ee7f7; }
+  .score-btn.active {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-color: #a78bfa;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(167,139,250,0.5);
+  }
+
+  /* ── 作品卡片 ── */
+  .works-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: #16162a;
+    border: 1px solid #2a2a4a;
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6ee7f7, #a78bfa);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .card:hover { border-color: #4a4a8a; transform: translateY(-2px); }
+  .card:hover::before { opacity: 1; }
+  .card.voted {
+    border-color: #6d28d9;
+    background: #1a163a;
+  }
+  .card.voted::before { opacity: 1; }
+
+  .card-num {
+    font-size: 0.72rem;
+    color: #555580;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .card-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #d0d0f0;
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* 票数显示 */
+  .vote-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #6ee7f7;
+  }
+  .vote-score-badge {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #a78bfa;
+  }
+
+  /* 投票按钮 */
+  .vote-btn {
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1px solid #4a4a8a;
+    background: #1e1e40;
+    color: #a0a0d0;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .vote-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-color: #a78bfa;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(167,139,250,0.4);
+  }
+  .vote-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .vote-btn.voted-btn {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-color: #a78bfa;
+    color: #fff;
+    cursor: default;
+  }
+
+  /* ── 实时排行榜 ── */
+  .rank-section {
+    margin-top: 32px;
+    background: #16162a;
+    border: 1px solid #2a2a4a;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .rank-header {
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #1a1a3e, #0d2060);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #a78bfa;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── 清空按钮 ── */
+  .clear-btn {
+    display: block;
+    margin: 20px auto 0;
+    padding: 8px 24px;
+    border-radius: 20px;
+    border: 1px solid #4a2a2a;
+    background: #1e1010;
+    color: #f87171;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .clear-btn:hover {
+    background: #3a1010;
+    border-color: #f87171;
+  }
+  .danger-btn {
+    border-color: #7f1d1d;
+    background: #2a0a0a;
+    color: #fca5a5;
+  }
+  .danger-btn:hover {
+    background: #4a1010;
+    border-color: #ef4444;
+    color: #fff;
+  }
+  .rank-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #1a1a30;
+    transition: background 0.2s;
+  }
+  .rank-item:hover { background: #1e1e38; }
+
+  .rank-no {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .rank-no.gold   { background: linear-gradient(135deg, #b8860b, #ffd700); color: #000; }
+  .rank-no.silver { background: linear-gradient(135deg, #6b6b6b, #c0c0c0); color: #000; }
+  .rank-no.bronze { background: linear-gradient(135deg, #7c4a1e, #cd7f32); color: #000; }
+  .rank-no.other  { background: #2a2a4a; color: #8888aa; }
+
+  .rank-name { flex: 1; font-size: 0.85rem; color: #c0c0e0; }
+
+  .rank-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: #2a2a4a;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .rank-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #6ee7f7, #a78bfa);
+    transition: width 0.6s ease;
+  }
+
+  .rank-score {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #6ee7f7;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* ── 加载动画 ── */
+  .loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+    gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #a78bfa;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1e1e40;
+    border: 1px solid #6d28d9;
+    color: #d0d0ff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 0.88rem;
+    transition: transform 0.3s ease;
+    z-index: 9999;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(109,40,217,0.4);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── 已投提示 ── */
+  .voted-tip {
+    text-align: center;
+    padding: 14px;
+    font-size: 0.88rem;
+    color: #a78bfa;
+    background: #1a1630;
+    border-radius: 10px;
+    border: 1px solid #3a2a6a;
+    margin-bottom: 16px;
+  }
+
+  /* ── 卡片内分值选择器 ── */
+  .card-scores {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .card-score-btn {
+    padding: 4px 10px;
+    border-radius: 14px;
+    border: 1px solid #3a3a6a;
+    background: #1e1e3a;
+    color: #a0a0d0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .card-score-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+  .card-score-btn.selected {
+    background: linear-gradient(135deg, #1e3a8a, #6d28d9);
+    border-color: #a78bfa;
+    color: #fff;
+  }
+
+  @media (max-width: 480px) {
+    .banner h1 { font-size: 1.2rem; }
+    .works-grid { grid-template-columns: 1fr; }
+    .rank-bar-wrap { width: 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <h1>✦ AI 作品评选投票 ✦</h1>
+  <p>每个作品可投一次 · 分值：100 / 80 / 50 / 30 / 10 分</p>
+</div>
+
+<div id="status-bar">正在加载作品...</div>
+
+<div class="container">
+  <div id="app">
+    <div class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  </div>
+
+  <div class="rank-section" id="rank-section" style="display:none">
+    <div class="rank-header">⚡ 实时得分排行榜</div>
+    <div class="rank-list" id="rank-list"></div>
+  </div>
+
+  <div style="display:flex;justify-content:center;gap:12px;margin-top:20px;flex-wrap:wrap">
+    <button class="clear-btn" onclick="clearMyVotes()">清空我的投票记录（本设备）</button>
+    <button class="clear-btn danger-btn" onclick="clearAllData()">⚠ 清空所有历史数据（重置全部票数）</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API_BASE       = 'https://yach-teable.zhiyinlou.com/api';
+const TABLE_ID       = 'tblxBl7kORJNUmGF2T3';
+const TOKEN          = 'teable_accHbUeB52g6mBazSV1_sgc4V24Eq1XNWUTSKiZfxaU42yGtWXO8GfuiWGhd9xY=';
+const FIELD_SCORE_ID = 'fldWxwzqlR1byQiMCy0';
+const SCORES         = [100, 80, 50, 30, 10];
+const VOTED_KEY      = 'ai_vote_map_v2'; // { recordId: score, ... }
+
+// ── 本地投票记录（Map：作品ID → 已投分值）──
+function getVoteMap() {
+  try { return JSON.parse(localStorage.getItem(VOTED_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveVote(recordId, score) {
+  const map = getVoteMap();
+  map[recordId] = score;
+  localStorage.setItem(VOTED_KEY, JSON.stringify(map));
+}
+function removeVote(recordId) {
+  const map = getVoteMap();
+  delete map[recordId];
+  localStorage.setItem(VOTED_KEY, JSON.stringify(map));
+}
+
+// ── API 封装 ──
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+async function loadRecords() {
+  const data = await apiFetch(`/table/${TABLE_ID}/record?fieldKeyType=name&pageSize=100`);
+  return data.records;
+}
+
+async function updateScore(recordId, newScore) {
+  await apiFetch(`/table/${TABLE_ID}/record/${recordId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      record: { fields: { [FIELD_SCORE_ID]: newScore } },
+      fieldKeyType: 'id',
+    }),
+  });
+}
+
+// ── Toast ──
+function showToast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ── 状态 ──
+let records    = [];
+// 每张卡片独立的"待选分值"：{ recordId: score | null }
+let pendingMap = {};
+
+function setStatus(msg) {
+  document.getElementById('status-bar').textContent = msg;
+}
+
+// ── 渲染 ──
+function renderCards() {
+  const voteMap = getVoteMap();
+  const votedCount = Object.keys(voteMap).length;
+  const total = records.length;
+
+  const summary = votedCount > 0
+    ? `<div class="voted-tip">✅ 已为 ${votedCount} / ${total} 个作品投票</div>`
+    : '';
+
+  return summary + `
+    <div class="works-grid">
+      ${records.map((r, i) => renderCard(r, i, voteMap)).join('')}
+    </div>
+  `;
+}
+
+function renderCard(r, i, voteMap) {
+  const name      = r.fields['作品名称'] || '—';
+  const curScore  = r.fields['票数'] || 0;
+  const myVote    = voteMap[r.id];          // 已投分值（或 undefined）
+  const pending   = pendingMap[r.id] || null; // 本卡片待选分值
+
+  let bottomHtml;
+  if (myVote) {
+    // 已投：展示徽标
+    bottomHtml = `<button class="vote-btn voted-btn" disabled>✓ 已投 ${myVote} 分</button>`;
+  } else {
+    // 未投：显示分值按钮 + 确认按钮
+    const scoreBtns = SCORES.map(s => `
+      <button class="card-score-btn ${pending === s ? 'selected' : ''}"
+              onclick="selectCardScore('${r.id}', ${s})">${s}</button>
+    `).join('');
+    const confirmBtn = `
+      <button class="vote-btn ${pending ? '' : ''}"
+              onclick="doVote('${r.id}', '${name.replace(/'/g, "\\'")}')"
+              ${pending ? '' : 'disabled'}>
+        ${pending ? `投 ${pending} 分` : '选分值'}
+      </button>
+    `;
+    bottomHtml = `
+      <div class="card-scores">${scoreBtns}</div>
+      ${confirmBtn}
+    `;
+  }
+
+  return `
+    <div class="card ${myVote ? 'voted' : ''}">
+      <div class="card-num">NO.${String(i+1).padStart(2,'0')}</div>
+      <div class="card-name">${name}</div>
+      <div class="vote-count" style="margin-top:4px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7f7" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span class="vote-score-badge">${curScore}</span>
+      </div>
+      <div class="card-footer" style="flex-wrap:wrap;gap:8px">
+        ${bottomHtml}
+      </div>
+    </div>
+  `;
+}
+
+function renderRank() {
+  const sorted = [...records]
+    .map(r => ({ name: r.fields['作品名称'] || '—', score: r.fields['票数'] || 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  const maxScore = sorted[0]?.score || 1;
+  const noColors = ['gold', 'silver', 'bronze'];
+
+  document.getElementById('rank-section').style.display = 'block';
+  document.getElementById('rank-list').innerHTML = sorted.map((item, i) => `
+    <div class="rank-item">
+      <div class="rank-no ${noColors[i] || 'other'}">${i + 1}</div>
+      <div class="rank-name">${item.name}</div>
+      <div class="rank-bar-wrap">
+        <div class="rank-bar" style="width:${Math.round(item.score / maxScore * 100)}%"></div>
+      </div>
+      <div class="rank-score">${item.score}</div>
+    </div>
+  `).join('');
+}
+
+function render() {
+  document.getElementById('app').innerHTML = renderCards();
+  renderRank();
+  updateStatus();
+}
+
+function updateStatus() {
+  const voteMap = getVoteMap();
+  const n = Object.keys(voteMap).length;
+  const total = records.length;
+  setStatus(n === 0
+    ? '请在每个作品卡片上选择分值后投票'
+    : n === total
+      ? `✅ 所有作品已投票完毕，感谢参与！`
+      : `已投 ${n} / ${total} 个作品`
+  );
+}
+
+// ── 交互 ──
+function selectCardScore(recordId, score) {
+  pendingMap[recordId] = score;
+  // 只重绘该卡片，避免全量 render 导致滚动位置跳动
+  const voteMap = getVoteMap();
+  const idx = records.findIndex(r => r.id === recordId);
+  if (idx === -1) return;
+  const cardEls = document.querySelectorAll('.card');
+  if (cardEls[idx]) {
+    cardEls[idx].outerHTML = renderCard(records[idx], idx, voteMap);
+    // outerHTML 替换后需重新绑定，用全量 render 保险一些
+    render();
+  }
+}
+
+async function doVote(recordId, name) {
+  const score = pendingMap[recordId];
+  if (!score) { showToast('请先选择分值'); return; }
+  const voteMap = getVoteMap();
+  if (voteMap[recordId]) { showToast('该作品已投过票'); return; }
+
+  const rec = records.find(r => r.id === recordId);
+  const oldScore = rec.fields['票数'] || 0;
+
+  // 乐观更新
+  rec.fields['票数'] = oldScore + score;
+  saveVote(recordId, score);
+  delete pendingMap[recordId];
+  render();
+  showToast(`✅ 已为「${name}」投 ${score} 分！`);
+
+  try {
+    await updateScore(recordId, oldScore + score);
+  } catch (e) {
+    // 回滚
+    rec.fields['票数'] = oldScore;
+    removeVote(recordId);
+    pendingMap[recordId] = score;
+    render();
+    showToast('❌ 投票失败，请重试', 3000);
+  }
+}
+
+// ── 轮询刷新排行榜 ──
+async function refreshScores() {
+  try {
+    const fresh = await loadRecords();
+    fresh.forEach(fr => {
+      const local = records.find(r => r.id === fr.id);
+      if (local) local.fields['票数'] = fr.fields['票数'] || 0;
+    });
+    renderRank();
+    // 同步卡片票数显示
+    const voteMap = getVoteMap();
+    document.querySelectorAll('.vote-score-badge').forEach((el, i) => {
+      if (records[i]) el.textContent = records[i].fields['票数'] || 0;
+    });
+  } catch {}
+}
+
+// ── 清空本地投票记录 ──
+function clearMyVotes() {
+  if (!confirm('确定要清空本设备的所有投票记录吗？\n（仅清除本地记录，不会修改 Teable 中的票数）')) return;
+  localStorage.removeItem(VOTED_KEY);
+  pendingMap = {};
+  render();
+  showToast('已清空本地投票记录');
+}
+
+// ── 清空 Teable 所有历史数据 ──
+async function clearAllData() {
+  if (!confirm('⚠ 警告：此操作将把所有作品票数清零，且无法撤销！\n\n确定要继续吗？')) return;
+  if (!confirm('再次确认：真的要清空所有作品的全部票数吗？')) return;
+
+  setStatus('正在清空所有数据...');
+  showToast('正在清空，请稍候...', 5000);
+
+  const failures = [];
+  for (const rec of records) {
+    try {
+      await apiFetch(`/table/${TABLE_ID}/record/${rec.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          record: { fields: { [FIELD_SCORE_ID]: null } },
+          fieldKeyType: 'id',
+        }),
+      });
+      rec.fields['票数'] = 0;
+    } catch (e) {
+      failures.push(rec.fields['作品名称'] || rec.id);
+    }
+  }
+
+  // 同时清除本地记录
+  localStorage.removeItem(VOTED_KEY);
+  pendingMap = {};
+  render();
+
+  if (failures.length === 0) {
+    showToast('✅ 所有数据已清空');
+    setStatus('数据已清空，可以重新开始投票');
+  } else {
+    showToast(`❌ ${failures.length} 条清空失败，请重试`, 4000);
+    setStatus(`部分清空失败：${failures.join('、')}`);
+  }
+}
+
+// ── 初始化 ──
+(async () => {
+  try {
+    records = await loadRecords();
+    render();
+  } catch (e) {
+    setStatus('❌ 加载失败，请刷新页面');
+    document.getElementById('app').innerHTML =
+      '<p style="text-align:center;color:#f87171;padding:40px">加载作品失败，请检查网络后刷新</p>';
+  }
+  setInterval(refreshScores, 15000);
+})();
+</script>
+</body>
+</html>
